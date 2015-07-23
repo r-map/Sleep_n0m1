@@ -40,14 +40,16 @@
 #endif
 
 extern "C" void WDT_vect(void) __attribute__ ((signal));
-extern "C" void sleepHandler(void) __attribute__ ((signal)); 
+//extern "C" void sleepHandler() __attribute__ ((signal)); 
+
+//void interruptClear(int interrupt);
 
 class Sleep {
 
 public:
 	
 	friend void WDT_vect(void);
-	friend void sleepHandler(void);
+	//	friend void sleepHandler();
 
 Sleep();
   
@@ -75,11 +77,6 @@ Sleep();
 	//Interrupt Sleep Function: Sleep till something interrupts sleep
 	void sleepInterrupt(int interrupt,int mode);
 	
-	
-   
-  
-
-
 private:
 
 	int sleepMode_;              
@@ -100,10 +97,3 @@ private:
 };
 
 #endif
-
-
-
-
-
-
-

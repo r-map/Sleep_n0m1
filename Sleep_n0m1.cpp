@@ -28,17 +28,29 @@
 
 #include "Sleep_n0m1.h"
 
-Sleep* Sleep::pSleep = 0; 
+/********************************************************************
+*
+*	sleepHandler ISR
+*
+********************************************************************/
+void sleepHandler()
+{
+  sleep_disable(); //disable sleep
+  noInterrupts ();   // same as cli();
+  // detachInterrupt(interupt) //  will be better, but we do not have interupt
+}
+
+Sleep* Sleep::pSleep = NULL; 
 
 Sleep::Sleep()
 {
 	pSleep = this;	//the ptr points to this object
 	timeSleep = 0;  // total time due to sleep
 	calibv = 1.0; // ratio of real clock with WDT clock
-	byte isrcalled = 0;  // WDT vector flag
+	//byte isrcalled = 0;  // WDT vector flag
 	sleepCycleCount = 0;
-	sleepCycleInterval = 100; 
-
+	sleepCycleInterval = 100;
+	sleepMode_ = SLEEP_MODE_PWR_DOWN;
 }
 
 /********************************************************************
@@ -78,6 +90,8 @@ unsigned long Sleep::WDTMillis() {
   return millis()+timeSleep;
 }
 
+
+
 /********************************************************************
 *
 *	sleepNow
@@ -85,21 +99,34 @@ unsigned long Sleep::WDTMillis() {
 ********************************************************************/
 void Sleep::sleepInterrupt(int interrupt,int mode) {
 
-	if(mode == FALLING || mode == LOW)
-	{
-	   int pin = interrupt + 2; //will fail on the mega	
-	   pinMode (pin, INPUT);
-	   digitalWrite (pin, HIGH);
-	}
+  //	int interrupt_; 
 
-	set_sleep_mode(sleepMode_);
-	sleep_enable();
-	attachInterrupt(interrupt,sleepHandler,mode);
-	sei(); //make sure interrupts are on!
-	sleep_mode();
-	 //----------------------------- ZZZZZZ sleeping here----------------------
-	sleep_disable(); //disable sleep, awake now
-	detachInterrupt(interrupt);
+  // if(mode == FALLING || mode == LOW)
+  //   {
+  //     //int pin = interrupt + 2; //will fail on the mega	
+  //     pinMode (pin, INPUT);
+  //     digitalWrite (pin, HIGH);
+  //   }
+  
+  set_sleep_mode(sleepMode_);
+  
+  sleep_enable();
+  
+  // Do not interrupt before we go to sleep, or the
+  // ISR will detach interrupts and we won't wake.
+  noInterrupts ();   // same as cli();
+  attachInterrupt(interrupt,sleepHandler,mode);
+  //sleep_bod_disable(); // do not use for mega2560
+
+  // We are guaranteed that the sleep_cpu call will be done
+  // as the processor executes the next instruction after
+  // interrupts are turned on.
+  interrupts ();  // one cycle // same as sei();
+  sleep_cpu ();   // one cycle
+  //----------------------------- ZZZZZZ sleeping here----------------------
+  sleep_disable();
+  detachInterrupt(interrupt);
+  interrupts ();  // one cycle // same as sei();
 }
 
 
@@ -219,17 +246,6 @@ void Sleep::WDT_Off() {
   /* Turn off WDT */
   WDTCSR = 0x00;
   sei();
-}
-
-/********************************************************************
-*
-*	sleepHandler ISR
-*
-********************************************************************/
-void sleepHandler(void)
-{
-	
-	
 }
 
 /********************************************************************
